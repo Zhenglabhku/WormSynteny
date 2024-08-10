@@ -1,0 +1,750 @@
+---
+title: "Code_singletons_duplicated_genes_tables"
+output: html_document
+date: "2024-07-25"
+---
+
+#### Table of singletons 
+
+```{r}
+## Libraries
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(purrr)
+library(readxl)
+library(shiny)
+library(rtracklayer)
+```
+
+```{r}
+folder_data_frames <- "your/own/path/to/tables/"
+```
+
+## Load data 
+
+```{r}
+#### FILES
+
+#Load genes files
+bovis <- read.csv( paste0(folder_data_frames, "bovis.csv"))
+becei <- read.csv( paste0(folder_data_frames, "becei.csv"))
+panamensis <- read.csv( paste0(folder_data_frames, "panamensis.csv"))
+inopinata <- read.csv(paste0(folder_data_frames, "inopinata.csv"))
+tropicalis <- read.csv( paste0(folder_data_frames, "tropicalis.csv"))
+remanei <- read.csv( paste0(folder_data_frames, "remanei.csv"))
+latens <- read.csv( paste0(folder_data_frames, "latens.csv"))
+tribulationis <- read.csv(paste0(folder_data_frames, "tribulationis.csv"))
+briggsae <- read.csv( paste0(folder_data_frames, "briggsae.csv"))
+nigoni <- read.csv( paste0(folder_data_frames, "nigoni.csv"))
+elegans <- read.csv(paste0(folder_data_frames, "elegans.csv"))
+
+#Clean it
+bovis <-  bovis  %>% select(-X)
+becei <- becei  %>% select(-X)
+panamensis <- panamensis  %>% select(-X)
+inopinata <- inopinata  %>% select(-X)
+tropicalis <- tropicalis  %>% select(-X)
+remanei <- remanei  %>% select(-X)
+latens <- latens  %>% select(-X)
+tribulationis <- tribulationis  %>% select(-X)
+briggsae <- briggsae  %>% select(-X)
+nigoni <- nigoni  %>% select(-X)
+elegans <- elegans %>% select(-X)
+
+## Species files containing exons, introns
+bovis_micro<- read.csv(paste0(folder_data_frames,"bovis_micro.csv"))
+becei_micro <- read.csv(paste0(folder_data_frames,"becei_micro.csv"))
+panamensis_micro <- read.csv(paste0(folder_data_frames,"panamensis_micro.csv"))
+inopinata_micro <- read.csv(paste0(folder_data_frames,"inopinata_micro.csv"))
+elegans_micro <- read.csv(paste0(folder_data_frames,"elegans_micro.csv"))
+tropicalis_micro <- read.csv(paste0(folder_data_frames,"tropicalis_micro.csv"))
+remanei_micro<- read.csv(paste0(folder_data_frames,"remanei_micro.csv"))
+latens_micro <- read.csv(paste0(folder_data_frames,"latens_micro.csv"))
+tribulationis_micro <- read.csv(paste0(folder_data_frames,"tribulationis_micro.csv"))
+briggsae_micro <- read.csv(paste0(folder_data_frames,"briggsae_micro.csv"))
+nigoni_micro <- read.csv(paste0(folder_data_frames,"nigoni_micro.csv"))
+
+#Clean it
+bovis_micro <-  bovis_micro  %>% select(-X)
+becei_micro <- becei_micro  %>% select(-X)
+panamensis_micro <- panamensis_micro  %>% select(-X)
+inopinata_micro <- inopinata_micro  %>% select(-X)
+tropicalis_micro <- tropicalis_micro  %>% select(-X)
+remanei_micro <- remanei_micro  %>% select(-X)
+latens_micro <- latens_micro  %>% select(-X)
+tribulationis_micro <- tribulationis_micro  %>% select(-X)
+briggsae_micro <- briggsae_micro  %>% select(-X)
+nigoni_micro <- nigoni_micro  %>% select(-X)
+elegans_micro <- elegans_micro %>% select(-X)
+```
+
+```{r}
+# Singletons elegans genes file 
+singletons <- read.csv(paste0(folder_data_frames, "singletons_elegans.csv"))
+
+# Join it with C. Elegans file to get gene names 
+singletons_id <- singletons %>% select(gene_id)
+singletons <- right_join(elegans, singletons_id, by="gene_id")
+```
+
+```{r}
+# Load the statistics at 0% filtering 
+no_aligned_regions_0 <- read.csv(paste0(folder_data_frames,"no_aligned_regions_0%.csv"))
+aligned_regions_0 <- read.csv(paste0(folder_data_frames, "aligned_regions_0%.csv"))
+no_genes_in_all_species_0 <- read.csv(paste0(folder_data_frames, "no_genes_in_all_species_0%.csv"))
+genes_in_all_species_0 <- read.csv(paste0(folder_data_frames,"genes_in_all_species_0%.csv"))
+no_same_OG_0 <- read.csv(paste0(folder_data_frames, "no_same_OG_0%.csv"))
+same_OG_0 <- read.csv(paste0(folder_data_frames,"same_OG_0%.csv"))
+```
+
+## Create a statistic column to caracterize the genes and merge them together 
+
+```{r}
+## Add a statistic type column : Same_OG, No_same_OG and Not_aligned 
+no_aligned_regions_0 <- no_aligned_regions_0 %>% mutate(statistic = "no_homologous_fragments_in_all_species") %>% select(gene_id, statistic)
+no_same_OG_0 <- no_same_OG_0 %>% mutate(statistic = "no_same_OG_in_all_species") %>% select(gene_id, statistic)
+same_OG_0 <- same_OG_0 %>% mutate(statistic = "same_OG_in_all_species") %>% select(gene_id, statistic)
+no_genes_in_all_species_0 <- no_genes_in_all_species_0 %>% mutate(statistic = "no_genes_in_all_species") %>% select(gene_id, statistic)
+
+##Combine them into one file 
+df <- rbind(no_aligned_regions_0, no_same_OG_0, same_OG_0, no_genes_in_all_species_0)
+
+## Merge it with singletons 
+df <- inner_join(singletons, df, by = "gene_id")
+df <- df %>% select_if(~!all(is.na(.)))
+```
+
+```{r}
+# Load the statistics at 0% filtering 
+no_aligned_regions_0 <- read.csv(paste0(folder_data_frames,"no_aligned_regions_0%.csv"))
+aligned_regions_0 <- read.csv(paste0(folder_data_frames, "aligned_regions_0%.csv"))
+no_genes_in_all_species_0 <- read.csv(paste0(folder_data_frames, "no_genes_in_all_species_0%.csv"))
+genes_in_all_species_0 <- read.csv(paste0(folder_data_frames,"genes_in_all_species_0%.csv"))
+no_same_OG_0 <- read.csv(paste0(folder_data_frames, "no_same_OG_0%.csv"))
+same_OG_0 <- read.csv(paste0(folder_data_frames,"same_OG_0%.csv"))
+```
+
+## Add Orthogroups column 
+
+```{r}
+## Retrieve the 11 species gene_names by orthogroups for the 4736 c. Elegans genes
+bovis_gene_id <- df %>% left_join(bovis, by = "Orthogroup") %>% select(gene_name, gene_id.y)
+no_aligned_bovis <- no_aligned_regions_0 %>% filter(str_detect(species, "bovis"))
+bovis_gene_id <- anti_join(bovis_gene_id, no_aligned_bovis, by="gene_name")
+no_same_OG_bovis <- no_same_OG_0 %>% filter(str_detect(species, "bovis")) 
+bovis_gene_id <- anti_join(bovis_gene_id, no_same_OG_bovis, by="gene_name")
+bovis_gene_id <- bovis_gene_id %>% dplyr::rename(`C. Bovis gene_id` = "gene_id.y")
+
+
+becei_gene_id <- df %>% left_join(becei, by = "Orthogroup") %>% select(gene_name, gene_id.y)
+no_aligned_becei <- no_aligned_regions_0 %>% filter(str_detect(species, "becei"))
+becei_gene_id <- anti_join(becei_gene_id, no_aligned_becei, by="gene_name")
+no_same_OG_becei <- no_same_OG_0 %>% filter(str_detect(species, "becei")) 
+becei_gene_id <- anti_join(becei_gene_id, no_same_OG_becei, by="gene_name")
+becei_gene_id <- becei_gene_id %>% dplyr::rename(`C. Becei gene_id` = "gene_id.y")
+
+
+panamensis_gene_id <- df %>% left_join(panamensis, by = "Orthogroup") %>% select(gene_name, gene_id.y)
+no_aligned_panamensis <- no_aligned_regions_0 %>% filter(str_detect(species, "panamensis"))
+panamensis_gene_id <- anti_join(panamensis_gene_id, no_aligned_panamensis, by="gene_name")
+no_same_OG_panamensis <- no_same_OG_0 %>% filter(str_detect(species, "panamensis")) 
+panamensis_gene_id <- anti_join(panamensis_gene_id, no_same_OG_panamensis, by="gene_name")
+panamensis_gene_id <- panamensis_gene_id %>% dplyr::rename(`C. Panamensis gene_id` = "gene_id.y")
+
+
+inopinata_gene_id <- df %>% left_join(inopinata, by = "Orthogroup") %>% select(gene_name, gene_id.y)
+no_aligned_inopinata <- no_aligned_regions_0 %>% filter(str_detect(species, "inopinata"))
+inopinata_gene_id <- anti_join(inopinata_gene_id, no_aligned_inopinata, by="gene_name")
+no_same_OG_inopinata <- no_same_OG_0 %>% filter(str_detect(species, "inopinata")) 
+inopinata_gene_id <- anti_join(inopinata_gene_id, no_same_OG_inopinata, by="gene_name")
+inopinata_gene_id <- inopinata_gene_id %>% dplyr::rename(`C. Inopinata gene_id` = "gene_id.y")
+
+tropicalis <- tropicalis %>% select(-gene_name)
+tropicalis_gene_id <- df %>% left_join(tropicalis, by = "Orthogroup") %>% select(gene_name, gene_id.y)
+no_aligned_tropicalis <- no_aligned_regions_0 %>% filter(str_detect(species, "tropicalis"))
+tropicalis_gene_id <- anti_join(tropicalis_gene_id, no_aligned_tropicalis, by="gene_name")
+no_same_OG_tropicalis <- no_same_OG_0 %>% filter(str_detect(species, "tropicalis"))
+tropicalis_gene_id <- anti_join(tropicalis_gene_id, no_same_OG_tropicalis, by="gene_name")
+tropicalis_gene_id <- tropicalis_gene_id %>% dplyr::rename(`C. Tropicalis gene_id` = "gene_id.y")
+
+remanei_gene_id <- df %>% left_join(remanei, by = "Orthogroup") %>% select(gene_name, gene_id.y)
+no_aligned_remanei <- no_aligned_regions_0 %>% filter(str_detect(species, "remanei"))
+remanei_gene_id <- anti_join(remanei_gene_id, no_aligned_remanei, by="gene_name")
+no_same_OG_remanei <- no_same_OG_0 %>% filter(str_detect(species, "remanei"))
+remanei_gene_id <- anti_join(remanei_gene_id, no_same_OG_remanei, by="gene_name")
+remanei_gene_id <- remanei_gene_id %>% dplyr::rename(`C. Remanei gene_id` = "gene_id.y")
+
+latens <- latens %>% select(-gene_name)
+latens_gene_id <- df %>% left_join(latens, by = "Orthogroup") %>% select(gene_name, gene_id.y)
+no_aligned_latens <- no_aligned_regions_0 %>% filter(str_detect(species, "latens"))
+latens_gene_id <- anti_join(latens_gene_id, no_aligned_latens, by="gene_name")
+no_same_OG_latens <- no_same_OG_0 %>% filter(str_detect(species, "latens"))
+latens_gene_id <- anti_join(latens_gene_id, no_same_OG_latens, by="gene_name")
+latens_gene_id <- latens_gene_id %>% dplyr::rename(`C. Latens gene_id` = "gene_id.y")
+
+tribulationis_gene_id <- df %>% left_join(tribulationis, by = "Orthogroup") %>% select(gene_name, gene_id.y)
+no_aligned_tribulationis <- no_aligned_regions_0 %>% filter(str_detect(species, "tribulationis"))
+tribulationis_gene_id <- anti_join(tribulationis_gene_id, no_aligned_tribulationis, by="gene_name")
+no_same_OG_tribulationis <- no_same_OG_0 %>% filter(str_detect(species, "tribulationis"))
+tribulationis_gene_id <- anti_join(tribulationis_gene_id, no_same_OG_tribulationis, by="gene_name")
+tribulationis_gene_id <- tribulationis_gene_id %>% dplyr::rename(`C. Tribulationis gene_id` = "gene_id.y")
+
+briggsae <- briggsae %>% select(-gene_name)
+briggsae_gene_id <- df %>% left_join(briggsae, by = "Orthogroup") %>% select(gene_name, gene_id.y)
+no_aligned_briggsae <- no_aligned_regions_0 %>% filter(str_detect(species, "briggsae"))
+briggsae_gene_id <- anti_join(briggsae_gene_id, no_aligned_briggsae, by="gene_name")
+no_same_OG_briggsae <- no_same_OG_0 %>% filter(str_detect(species, "briggsae"))
+briggsae_gene_id <- anti_join(briggsae_gene_id, no_same_OG_briggsae, by="gene_name")
+briggsae_gene_id <- briggsae_gene_id %>% dplyr::rename(`C. Briggsae gene_id` = "gene_id.y")
+
+nigoni <- nigoni %>% select(-gene_name)
+nigoni_gene_id <- df %>% left_join(nigoni, by = "Orthogroup") %>% select(gene_name, gene_id.y)
+no_aligned_nigoni <- no_aligned_regions_0 %>% filter(str_detect(species, "nigoni"))
+nigoni_gene_id <- anti_join(nigoni_gene_id, no_aligned_nigoni, by="gene_name")
+no_same_OG_nigoni <- no_same_OG_0 %>% filter(str_detect(species, "nigoni"))
+nigoni_gene_id <- anti_join(nigoni_gene_id, no_same_OG_nigoni, by="gene_name")
+nigoni_gene_id <- nigoni_gene_id %>% dplyr::rename(`C. Nigoni gene_id` = "gene_id.y")
+```
+
+```{r}
+## Join them together 
+df <- left_join(df, bovis_gene_id, by= "gene_name")
+df <- left_join(df, becei_gene_id, by= "gene_name")
+df <- left_join(df, panamensis_gene_id, by= "gene_name")
+df <- left_join(df, inopinata_gene_id, by= "gene_name")
+df <- left_join(df, tropicalis_gene_id, by= "gene_name")
+df <- left_join(df, remanei_gene_id, by= "gene_name")
+df <- left_join(df, latens_gene_id, by= "gene_name")
+df <- left_join(df, tribulationis_gene_id, by= "gene_name")
+df <- left_join(df, briggsae_gene_id, by= "gene_name")
+df <- left_join(df, nigoni_gene_id, by= "gene_name")
+```
+
+## Add the exons number columns
+
+```{r}
+## Retrieve the 11 species exons number for the 4736 C. Elegans genes
+exons_number_bovis <- bovis_micro %>%  group_by(gene_id) %>% summarise(`C. Bovis exons_number` = n()) %>% dplyr::rename(`C. Bovis gene_id` = "gene_id")
+exons_number_bovis <- exons_number_bovis %>% semi_join(df, by = "C. Bovis gene_id")
+
+exons_number_becei <- becei_micro %>%  group_by(gene_id) %>% summarise(`C. Becei exons_number` = n()) %>% dplyr::rename(`C. Becei gene_id` = "gene_id")
+exons_number_becei <- exons_number_becei %>% semi_join(df, by = "C. Becei gene_id")
+
+exons_number_panamensis <- panamensis_micro %>%  group_by(gene_id) %>% summarise(`C. Panamensis exons_number` = n()) %>% dplyr::rename(`C. Panamensis gene_id` = "gene_id")
+exons_number_panamensis <- exons_number_panamensis %>% semi_join(df, by = "C. Panamensis gene_id")
+
+exons_number_inopinata <- inopinata_micro %>%  group_by(gene_id) %>% summarise(`C. Inopinata exons_number` = n()) %>% dplyr::rename(`C. Inopinata gene_id` = "gene_id")
+exons_number_inopinata <- exons_number_inopinata %>% semi_join(df, by = "C. Inopinata gene_id")
+
+exons_number_elegans <- elegans_micro %>%  group_by(gene_id) %>% summarise(`C. Elegans exons_number` = n())
+exons_number_elegans <- exons_number_elegans %>% semi_join(df, by = "gene_id")
+
+exons_number_tropicalis <- tropicalis_micro %>%  group_by(gene_id) %>% summarise(`C. Tropicalis exons_number` = n()) %>% dplyr::rename(`C. Tropicalis gene_id` = "gene_id")
+exons_number_tropicalis <- exons_number_tropicalis %>% semi_join(df, by = "C. Tropicalis gene_id")
+
+exons_number_remanei <- remanei_micro %>%  group_by(gene_id) %>% summarise(`C. Remanei exons_number` = n()) %>% dplyr::rename(`C. Remanei gene_id` = "gene_id")
+exons_number_remanei <- exons_number_remanei %>% semi_join(df, by = "C. Remanei gene_id")
+
+exons_number_latens <- latens_micro %>%  group_by(gene_id) %>% summarise(`C. Latens exons_number` = n()) %>% dplyr::rename(`C. Latens gene_id` = "gene_id")
+exons_number_latens <- exons_number_latens %>% semi_join(df, by = "C. Latens gene_id")
+
+exons_number_tribulationis <- tribulationis_micro %>%  group_by(gene_id) %>% summarise(`C. Tribulationis exons_number` = n()) %>% dplyr::rename(`C. Tribulationis gene_id` = "gene_id")
+exons_number_tribulationis <- exons_number_tribulationis %>% semi_join(df, by = "C. Tribulationis gene_id")
+
+exons_number_briggsae <- briggsae_micro %>%  group_by(gene_id) %>% summarise(`C. Briggsae exons_number` = n()) %>% dplyr::rename(`C. Briggsae gene_id` = "gene_id")
+exons_number_briggsae <- exons_number_briggsae %>% semi_join(df, by = "C. Briggsae gene_id")
+
+exons_number_nigoni <- nigoni_micro %>%  group_by(gene_id) %>% summarise(`C. Nigoni exons_number` = n()) %>% dplyr::rename(`C. Nigoni gene_id` = "gene_id")
+exons_number_nigoni <- exons_number_nigoni %>% semi_join(df, by = "C. Nigoni gene_id")
+```
+
+```{r}
+## Join them together 
+df <- left_join(df, exons_number_bovis, by= "C. Bovis gene_id")
+df <- left_join(df, exons_number_becei, by= "C. Becei gene_id")
+df <- left_join(df, exons_number_panamensis, by= "C. Panamensis gene_id")
+df <- left_join(df, exons_number_inopinata, by= "C. Inopinata gene_id")
+df <- left_join(df, exons_number_elegans, by= "gene_id")
+df <- left_join(df, exons_number_tropicalis, by= "C. Tropicalis gene_id")
+df <- left_join(df, exons_number_remanei, by= "C. Remanei gene_id")
+df <- left_join(df, exons_number_latens, by= "C. Latens gene_id")
+df <- left_join(df, exons_number_tribulationis, by= "C. Tribulationis gene_id")
+df <- left_join(df, exons_number_briggsae, by= "C. Briggsae gene_id")
+df <- left_join(df, exons_number_nigoni, by= "C. Nigoni gene_id")
+```
+
+## Add the introns length
+
+```{r}
+## Retrieve the 11 species introns length for the 4736 C. Elegans genes
+
+#Function to stitch reads together depending of gap value 
+stitch <- function(raw_coord, gap_max){
+  if(is.null(raw_coord)){
+    return(raw_coord)
+    
+  }else{
+    l_1 <- list()
+    df_distinct <- raw_coord %>% distinct(seqnames)
+    
+    for(k in 1 : nrow(df_distinct)){
+      df <- raw_coord %>% filter(seqnames %in% df_distinct$seqnames[k]) %>% arrange(seqnames, start)
+      stich_df <- df[1,]
+      i <- 1
+      n <- 1
+      gap <- 0
+      gap_cumul <- 0
+      max_end <- 0
+      l_2 <- list()
+      while(n < nrow(df)){
+        #Initialize at line 1 (n==1)
+        gap <- 0
+        max_end <- df$end[n]
+        stich_df$end <- df$end[n]
+        stich_df$start <- df$start[n]
+        length <- df$length[n]
+        stich_df$length <- length
+        stich_df$gap <- gap
+        
+        #Calculate the gap
+        gap <- df$start[n+1] - df$end[n]
+        gap_cumul <- gap
+        
+        #Stich
+        #if start of other line is included between start and end, end added with gap_max value
+        while( df$start[n+1]>=  df$start[n] &  df$start[n+1]<=  (max_end + gap_max)){
+          n <- n + 1
+          if(df$end[n] >= max_end){
+            stich_df$end <- df$end[n]
+            max_end <- df$end[n]
+          }else{
+            stich_df$end <- max_end
+          }
+          length <- df$length[n]  + length
+          stich_df$length <- length
+          stich_df$gap <- gap_cumul
+          
+          if(n == nrow(df)){
+            
+            break
+            
+          }else{
+            gap <- df$start[n+1] - df$end[n]
+            gap_cumul <- gap + gap_cumul
+            
+          }
+        }
+        l_2[[i]] <- stich_df
+        i <- i + 1
+        n <- n + 1
+      }
+      if(n == nrow(df)){
+        gap <- 0
+        stich_df$end <- df$end[n]
+        stich_df$start <- df$start[n]
+        length <- df$length[n]
+        stich_df$length <- length
+        stich_df$gap <- gap
+        l_2[[i]] <- stich_df
+      }
+      df_stich <- as.data.frame(do.call(rbind, l_2))
+      l_1[[k]] <- df_stich
+    }
+    df <- as.data.frame(do.call(rbind,l_1))
+    return(df)
+  }
+}
+
+#Function to calculate the introns length 
+intron_length <- function(species, species_micro){
+  
+  genes_length <- species %>% group_by(gene_id) %>%  mutate(genes_length = width) %>% distinct(gene_id, genes_length)
+  micro_reduced <- species_micro %>% distinct(gene_id,start, end, width) %>% dplyr::rename(seqnames = "gene_id", length = width)
+  stitch_CDS <- stitch(micro_reduced, 0)
+  stitch_CDS <-  stitch_CDS %>% mutate(length = (end-start)+1) %>% dplyr::rename(width = "length", gene_id = "seqnames") %>% select(-gap)
+  introns_length <- stitch_CDS %>% distinct(gene_id, width) %>% group_by(gene_id) %>% summarize(total_width =sum(width))
+  introns_length <- inner_join(introns_length, genes_length, by = "gene_id")
+  introns_length <- introns_length %>% mutate(introns_length = genes_length - total_width)
+  introns_length <- introns_length %>% select(gene_id, introns_length)
+
+  return(introns_length)
+
+}
+
+#Apply this function to the 11 species 
+bovis_introns_length <- intron_length(bovis, bovis_micro) %>% dplyr::rename(`C. Bovis introns_length` = "introns_length")
+bovis_introns_length <- bovis_introns_length %>% dplyr::rename(`C. Bovis gene_id` = "gene_id")
+
+becei_introns_length <- intron_length(becei, becei_micro) %>% dplyr::rename(`C. Becei introns_length` = "introns_length")
+becei_introns_length <- becei_introns_length %>% dplyr::rename(`C. Becei gene_id` = "gene_id")
+
+panamensis_introns_length <- intron_length(panamensis, panamensis_micro) %>% dplyr::rename(`C. Panamensis introns_length` = "introns_length")
+panamensis_introns_length <- panamensis_introns_length %>% dplyr::rename(`C. Panamensis gene_id` = "gene_id")
+
+inopinata_introns_length <- intron_length(inopinata, inopinata_micro) %>% dplyr::rename(`C. Inopinata introns_length` = "introns_length")
+inopinata_introns_length <- inopinata_introns_length %>% dplyr::rename(`C. Inopinata gene_id` = "gene_id")
+
+elegans_introns_length <- intron_length(elegans, elegans_micro) %>% dplyr::rename(`C. Elegans introns_length` = "introns_length")
+
+tropicalis_introns_length <- intron_length(tropicalis, tropicalis_micro) %>% dplyr::rename(`C. Tropicalis introns_length` = "introns_length")
+tropicalis_introns_length <- tropicalis_introns_length %>% dplyr::rename(`C. Tropicalis gene_id` = "gene_id")
+
+remanei_introns_length <- intron_length(remanei, remanei_micro) %>% dplyr::rename(`C. Remanei introns_length` = "introns_length")
+remanei_introns_length <- remanei_introns_length %>% dplyr::rename(`C. Remanei gene_id` = "gene_id")
+
+latens_introns_length <- intron_length(latens, latens_micro) %>% dplyr::rename(`C. Latens introns_length` = "introns_length")
+latens_introns_length <- latens_introns_length %>% dplyr::rename(`C. Latens gene_id` = "gene_id")
+
+tribulationis_introns_length <- intron_length(tribulationis, tribulationis_micro) %>% dplyr::rename(`C. Trubulationis introns_length` = "introns_length")
+tribulationis_introns_length <- tribulationis_introns_length %>% dplyr::rename(`C. Tribulationis gene_id` = "gene_id")
+
+briggsae_introns_length <- intron_length(briggsae, briggsae_micro) %>% dplyr::rename(`C. Briggsae introns_length` = "introns_length")
+briggsae_introns_length <- briggsae_introns_length %>% dplyr::rename(`C. Briggsae gene_id` = "gene_id")
+
+nigoni_introns_length <- intron_length(nigoni, nigoni_micro) %>% dplyr::rename(`C. Nigoni introns_length` = "introns_length")
+nigoni_introns_length <- nigoni_introns_length %>% dplyr::rename(`C. Nigoni gene_id` = "gene_id")
+```
+
+```{r}
+## Join them together 
+df <- left_join(df, bovis_introns_length, by= "C. Bovis gene_id")
+df <- left_join(df, becei_introns_length, by= "C. Becei gene_id")
+df <- left_join(df, panamensis_introns_length, by= "C. Panamensis gene_id")
+df <- left_join(df, inopinata_introns_length, by= "C. Inopinata gene_id")
+df <- left_join(df, elegans_introns_length, by= "gene_id")
+df <- left_join(df, tropicalis_introns_length, by= "C. Tropicalis gene_id")
+df <- left_join(df, remanei_introns_length, by= "C. Remanei gene_id")
+df <- left_join(df, latens_introns_length, by= "C. Latens gene_id")
+df <- left_join(df, tribulationis_introns_length, by= "C. Tribulationis gene_id")
+df <- left_join(df, briggsae_introns_length, by= "C. Briggsae gene_id")
+df <- left_join(df, nigoni_introns_length, by= "C. Nigoni gene_id")
+```
+
+```{r}
+## Save the single-copy genes table 
+write.csv(df, paste0(folder_data_frames, "Single-copy-genes-statistics.csv"))
+```
+
+## How many single-copy genes do C. Bovis orthologs have more exons than other species
+
+```{r}
+## Load the single-copy genes file 
+single_copy_genes <- read.csv(paste0(folder_data_frames, "Single-copy-genes-statistics.csv"))
+single_copy_genes <- single_copy_genes %>% select(-X)
+
+## Select exons number columns and retrieve the genes that have more exons in C. Bovis than others 
+df <- single_copy_genes[25:35] %>% 
+  as.data.frame() %>% 
+  mutate(row_number = rownames(.)) %>% 
+  gather(key = "column_names", value = "value", -row_number) %>% 
+  group_by(row_number) %>% 
+  summarise(max_exons = max(value), 
+            column_names = column_names[which.max(value)]) %>% 
+  filter(str_detect(column_names, "Bovis"))
+
+df_2 <- single_copy_genes %>% mutate(row_number = rownames(.)) %>% select(gene_id, row_number)
+df <- left_join(df, df_2, by = "row_number") 
+
+## Save the table
+write.csv(df, paste0(folder_data_frames, "Max_exons_number_bovis.csv"))
+```
+
+## How many genes have longer introns in C. Remanei or C. Latens orthologs than other orthologs?
+
+```{r}
+## Load the single-copy genes file 
+single_copy_genes <- read.csv(paste0(folder_data_frames, "Single-copy-genes-statistics.csv"))
+single_copy_genes <- single_copy_genes %>% select(-X)
+
+## Select introns length columns and retrieve the genes that have longer introns in C. Remanei or C. Latens 
+df <- single_copy_genes[36:46] %>% 
+  as.data.frame() %>% 
+  mutate(row_number = rownames(.)) %>% 
+  gather(key = "column_names", value = "value", -row_number) %>% 
+  group_by(row_number) %>% 
+  summarise(max_introns_length = max(value), 
+            column_names = column_names[which.max(value)]) %>% 
+  filter(str_detect(column_names, "Remanei") | str_detect(column_names, "Latens"))
+
+df_2 <- single_copy_genes %>% mutate(row_number = rownames(.)) %>% select(gene_id, row_number)
+df <- left_join(df, df_2, by = "row_number") 
+
+## Save the table
+write.csv(df, paste0(folder_data_frames, "Max_introns_length_remanei_latens.csv"))
+```
+ 
+#### Table of duplicated genes 
+
+## General table 
+
+```{r}
+folder_data_frames <- "your/own/path/to/tables/"
+```
+
+```{r}
+## Load the tables 
+media_3 <- readxl::read_excel(paste0(folder_data_frames,"media-3.xlsx"))
+media_5 <- readxl::read_excel(paste0(folder_data_frames,"media-5.xlsx"))
+```
+
+```{r}
+## Merge to form one file : Orthogroups file
+df <- inner_join(media_5, media_3, by = "Orthogroup")
+```
+
+```{r}
+## Filter to keep two genes in C. Elegans
+df <- df %>% filter(str_count(`C. elegans`, ",") == 1)
+df <- df %>% dplyr::rename(gene_id = "WBGene")
+
+## Join metadata 
+df <- inner_join(elegans, df, by = c("gene_id", "Orthogroup"))
+df <- df %>% select_if(~!all(is.na(.)))
+
+## Rename columns 
+df <- df %>% dplyr::rename(`C. Bovis` = "C. bovis",`C. Becei` = "C. becei",`C. Panamensis` = "C. panamensis",`C. Inopinata` = "C. inopinata",`C. Tropicalis` = "C. tropicalis",`C. Remanei` = "C. remanei",`C. Briggsae` = "C. briggsae",`C. Nigoni` = "C. nigoni",`C. Tribulationis` = "C. tribulationis", `C. Latens` = "C. latens", `C. Elegans` = "C. elegans")
+
+## Save the table
+write.csv(df, paste0(folder_data_frames,"Table_S3.csv"))
+```
+
+## Table with two genes in C. Elegans and one gene in other species 
+
+```{r}
+## From Table S3 filter one gene in other species 
+Duplicated_genes_one_gene <- df %>% filter(if_all(`C. Becei`:`C. Briggsae`, ~ str_count(., ",") == 0) & if_all(`C. Inopinata`: `C. Tropicalis`, ~ str_count(., ",") == 0))
+
+## Join metadata
+df_gene_name <- inner_join(elegans, Duplicated_genes_one_gene, by = "gene_id")
+```
+
+```{r}
+## Identify the ancestor for each orthogroup using PSl file infos : comparing multiple psl scores
+
+#Create region 
+create_region <- function(chr, start, end, gap, filtering_percentage, gname){
+  
+  #if gname is empty 
+  if(!isTruthy(gname)){
+    #Create a data frame with the provided region 
+    region <- data.frame(seqnames = chr, start = start, end = end, length = (end-start)+1, gap = gap, filtering_percentage = filtering_percentage)
+    
+    #Create a GTF file of the selected region
+    region_gr <- makeGRangesFromDataFrame(region, keep.extra.columns = TRUE)
+    export(region_gr, paste0(folder_ubuntu, "region.gtf"))
+  }else{
+    
+    region <- elegans %>% filter(gene_name == gname) %>% dplyr::rename(length = "width") %>%  select(seqnames, start, end, length) %>% mutate(gap = gap, filtering_percentage = filtering_percentage)
+    #Create a GTF file of the selected region
+    region_gr <- makeGRangesFromDataFrame(region, keep.extra.columns = TRUE)
+    export(region_gr, paste0(folder_ubuntu, "region.gtf"))
+    
+  }
+  return(region)
+}
+
+system_linux <- function(species) {
+  list_df <- list()
+  system(paste0("rm ", folder_ubuntu, "region_*"))
+  #Convert singletons_elegans GTF file to BED files
+  system(paste0("gtf2bed < ", folder_ubuntu, "region.gtf > ", folder_ubuntu, "region.bed"))
+  for(i in species){
+    tryCatch({
+      system(paste0("/home/lilly/hal/bin/halLiftover ",folder_ubuntu, "evolver_Caenorhabditis.hal --outPSLWithName caenorhabditis_elegans ", folder_ubuntu, "region.bed caenorhabditis_",i, " ",folder_ubuntu,"region_", i, ".psl --bedType 4"))
+      list_df[[i]] <- read.table(paste0(folder_ubuntu, "region_", i,".psl"))
+    }, error=function(e){print(i)})
+  }
+  return(list_df)
+}
+
+## pslToDataFrame : take a psl file in return a data frame (elegans_species version)
+pslToDataFrame <- function(elegans_species, species_name){
+  
+  if(is.null(elegans_species)){
+    return(elegans_species)
+  }else{
+    #Select the data frame
+    colnames(elegans_species) <- c("gene_id", "matches", "misMatches" ,"repMatches","nCount","qNumInsert","qBaseInsert","tNumInsert","tBaseInsert" ,"strand","scaff","qSize","start","end","seq_id2","tSize","start2","end2","blockCount","blockSizes","qStarts","tStarts") 
+    
+    #Create seq_id and seq_id2 
+    elegans_species$seq_id <- paste("elegans",elegans_species$scaff, sep = "_")
+    elegans_species <- elegans_species %>% rename(seqnames = "seq_id2")
+    elegans_species$seq_id2 <- paste(species_name,elegans_species$seqnames, sep = "_")
+    
+    #Create strand and strand2 (separate in two columns the column containing both strands)
+    elegans_species <- elegans_species %>% mutate(new_strand = gsub("([[:punct:]])([[:punct:]])", "\\1 \\2", elegans_species$strand)) %>% select(-strand) %>% separate(new_strand, into = c("strand", "strand2"), sep = " ")
+    return(elegans_species)
+  }
+}
+
+
+## pslScore function : calculate the alignment score 
+pslScore <- function(x){
+  l <- list()
+  if(!is.null(x)){
+    for(i in 1:nrow(x)){
+        score <- (x$matches[[i]]+ x$repMatches[[i]]) - x$misMatches[[i]] - x$qNumInsert[[i]] - x$tNumInsert[[i]]
+        l[[i]] <- score
+    }
+  vector <- unlist(l)
+  sum_score <- sum(vector)
+  }else{
+    sum_score <- 0
+  }
+  return(sum_score)
+}
+
+## Calculate scores and store them 
+scores_pipeline <- function(df_gene_name){
+  l <- list()
+  
+  for(gname in df_gene_name$gene_name){
+  
+  region <- create_region("V", 6672123, 6687573, gap = 0, filtering_percentage = 0, gname = gname)
+
+  ## Step 1 : Retrieve the homologous fragments of the C. elegans sequence of inquiry
+  
+  #Species names
+  species <- c("bovis", "becei", "panamensis", "inopinata","tropicalis", "remanei", "latens", "tribulationis", "briggsae", "nigoni")
+  
+  #HalLiftover command 
+  list_df <- system_linux(species)
+  
+  #Get data frames from PSL files obtained with halLiftover command
+  elegans_becei <- pslToDataFrame(list_df$becei,"becei")
+  elegans_bovis <- pslToDataFrame(list_df$bovis,"bovis")
+  elegans_panamensis <- pslToDataFrame(list_df$panamensis,"panamensis")
+  elegans_inopinata <- pslToDataFrame(list_df$inopinata,"inopinata")
+  elegans_tropicalis <- pslToDataFrame(list_df$tropicalis,"tropicalis")
+  elegans_remanei <- pslToDataFrame(list_df$remanei,"remanei")
+  elegans_latens <- pslToDataFrame(list_df$latens,"latens")
+  elegans_tribulationis <- pslToDataFrame(list_df$tribulationis,"tribulationis")
+  elegans_briggsae <- pslToDataFrame(list_df$briggsae,"briggsae")
+  elegans_nigoni <- pslToDataFrame(list_df$nigoni,"nigoni")
+
+  scores_bovis <- pslScore(elegans_bovis)
+  scores_becei <- pslScore(elegans_becei)
+  scores_panamensis <- pslScore(elegans_panamensis)
+  scores_inopinata <- pslScore(elegans_inopinata)
+  scores_tropicalis <- pslScore(elegans_tropicalis)
+  scores_remanei <- pslScore(elegans_remanei)
+  scores_latens <- pslScore(elegans_latens)
+  scores_tribulationis <- pslScore(elegans_tribulationis)
+  scores_briggsae <- pslScore(elegans_briggsae)
+  scores_nigoni <- pslScore(elegans_nigoni)
+   
+  list_scores <- list("C. Bovis" = scores_bovis,"C. Becei" = scores_becei,"C. Panamensis" = scores_panamensis,"C. Inopinata" = scores_inopinata,"C. Tropicalis" = scores_tropicalis,"C. Remanei" = scores_remanei,"C. Latens" = scores_latens,"C. Tribulationis" = scores_tribulationis,"C. Briggsae" = scores_briggsae,"C. Nigoni" = scores_nigoni)
+  
+  l[[gname]] <- list_scores
+  
+  }
+  
+  return(l)
+}
+
+## Apply the functions 
+scores <- scores_pipeline(duplicated_genes_two_genes)
+df <- scores %>%
+  imap_dfr(~ tibble(gene_name = .y, species = names(.x), scores = unlist(.x)))
+
+## Summarize the C. Inopinata scores and average scores 
+df <- df %>% group_by(gene_name) %>% summarize(inopinata_scores = scores[species == "C. Inopinata"], average_scores = mean(scores))
+
+## Add the columns to the duplicated genes table 
+duplicated_genes_summary_file <- left_join(duplicated_genes_two_genes, df, by = "gene_name")
+
+## Add a column storing the number of homologs in C. Inopinata 
+duplicated_genes_summary_file <- duplicated_genes_summary_file %>% mutate(homologs_inopinata = str_count(C..Inopinata, ",")+1)
+
+## Save the table S4
+write.csv(duplicated_genes_summary_file, paste0(folder_data_frames,"Table_S4.csv"))
+```
+
+```{r}
+## Add a scaled PSL score column 
+
+## Load the Table S4 
+table_s4 <- read.csv(paste0(folder_data_frames,"Table_S4.csv"))
+
+## pslScore function : calculate the alignment score 
+pslScore <- function(x, query_length){
+  l <- list()
+  if(!is.null(x)){
+    for(i in 1:nrow(x)){
+        score <- ((x$matches[[i]]+ x$repMatches[[i]]) - x$misMatches[[i]] - x$qNumInsert[[i]] - x$tNumInsert[[i]])/query_length ## scaled by the query length 
+        l[[i]] <- score
+    }
+  vector <- unlist(l)
+  sum_score <- sum(vector)
+  }else{
+    sum_score <- 0
+  }
+  return(sum_score)
+}
+
+## Calculate scores and store them 
+scores_pipeline <- function(df_gene_name){
+  l <- list()
+  
+  for(gname in df_gene_name$gene_name){
+  
+  region <- create_region("V", 6672123, 6687573, gap = 0, filtering_percentage = 0, gname = gname)
+
+  ## Step 1 : Retrieve the homologous fragments of the C. elegans sequence of inquiry
+  
+  #Species names
+  species <- c("bovis", "becei", "panamensis", "inopinata","tropicalis", "remanei", "latens", "tribulationis", "briggsae", "nigoni")
+  
+  #HalLiftover command 
+  list_df <- system_linux(species)
+  
+  #Get data frames from PSL files obtained with halLiftover command
+  elegans_becei <- pslToDataFrame(list_df$becei,"becei")
+  elegans_bovis <- pslToDataFrame(list_df$bovis,"bovis")
+  elegans_panamensis <- pslToDataFrame(list_df$panamensis,"panamensis")
+  elegans_inopinata <- pslToDataFrame(list_df$inopinata,"inopinata")
+  elegans_tropicalis <- pslToDataFrame(list_df$tropicalis,"tropicalis")
+  elegans_remanei <- pslToDataFrame(list_df$remanei,"remanei")
+  elegans_latens <- pslToDataFrame(list_df$latens,"latens")
+  elegans_tribulationis <- pslToDataFrame(list_df$tribulationis,"tribulationis")
+  elegans_briggsae <- pslToDataFrame(list_df$briggsae,"briggsae")
+  elegans_nigoni <- pslToDataFrame(list_df$nigoni,"nigoni")
+
+  scores_bovis <- pslScore(elegans_bovis, region$length)
+  scores_becei <- pslScore(elegans_becei, region$length)
+  scores_panamensis <- pslScore(elegans_panamensis, region$length)
+  scores_inopinata <- pslScore(elegans_inopinata, region$length)
+  scores_tropicalis <- pslScore(elegans_tropicalis, region$length)
+  scores_remanei <- pslScore(elegans_remanei, region$length)
+  scores_latens <- pslScore(elegans_latens, region$length)
+  scores_tribulationis <- pslScore(elegans_tribulationis, region$length)
+  scores_briggsae <- pslScore(elegans_briggsae, region$length)
+  scores_nigoni <- pslScore(elegans_nigoni, region$length)
+   
+  list_scores <- list("C. Bovis" = scores_bovis,"C. Becei" = scores_becei,"C. Panamensis" = scores_panamensis,"C. Inopinata" = scores_inopinata,"C. Tropicalis" = scores_tropicalis,"C. Remanei" = scores_remanei,"C. Latens" = scores_latens,"C. Tribulationis" = scores_tribulationis,"C. Briggsae" = scores_briggsae,"C. Nigoni" = scores_nigoni)
+  
+  l[[gname]] <- list_scores
+  
+  }
+  
+  return(l)
+}
+
+## Apply functions
+scores <- scores_pipeline(table_s4)
+df <- scores %>%
+  imap_dfr(~ tibble(gene_name = .y, species = names(.x), scaled_scores = unlist(.x)))
+
+## Summarize C. Inopinata PSL scores 
+df <- df %>% group_by(gene_name) %>% summarize(inopinata_scaled_scores = scaled_scores[species == "C. Inopinata"], average_scaled_scores = mean(scaled_scores))
+
+## Add the column to the table S4 
+duplicated_genes_summary_file <- left_join(table_s4, df, by = "gene_name")
+
+## Save the table S4
+write.csv(duplicated_genes_summary_file, paste0(folder_data_frames,"Table_S4.csv"))
+```
+
+
+

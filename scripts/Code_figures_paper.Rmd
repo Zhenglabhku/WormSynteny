@@ -1,0 +1,575 @@
+---
+title: "Code_figures_paper"
+output: html_document
+date: "2024-07-25"
+---
+
+#### Study of gap values
+
+```{r}
+## Libraries 
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(purrr)
+library(readxl)
+library(shiny)
+library(rtracklayer)
+```
+
+
+```{r}
+## Load your path and necessary tables 
+folder_data_frames <- "/your/path/to/data/frames/"
+```
+
+```{r}
+# Load the singletons data frame 
+singletons <- read.csv(paste0(folder_data_frames, "singletons_elegans.csv"))
+singletons_id <- singletons %>% select(gene_id)
+
+# Join the singletons df to the C. Elegans df to get the gene name information
+singletons_metadata <- right_join(elegans, singletons_id, by="gene_id")
+```
+
+```{r}
+## Load functions 
+#Function to create the region of C.elegans by taking the parameters that the user chose (seq_id, seqnames, start, end, width)
+create_region <- function(chr, start, end, gap, filtering_percentage, gname){
+  
+  #if gname is empty 
+  if(!isTruthy(gname)){
+    #Create a data frame with the provided region 
+    region <- data.frame(seqnames = chr, start = start, end = end, length = (end-start)+1, gap = gap, filtering_percentage = filtering_percentage)
+    
+    #Create a GTF file of the selected region
+    region_gr <- makeGRangesFromDataFrame(region, keep.extra.columns = TRUE)
+    export(region_gr, paste0(folder_ubuntu, "region.gtf"))
+  }else{
+    
+    region <- elegans %>% filter(gene_name == gname) %>% dplyr::rename(length = "width") %>%  select(seqnames, start, end, length) %>% mutate(gap = gap, filtering_percentage = filtering_percentage)
+    #Create a GTF file of the selected region
+    region_gr <- makeGRangesFromDataFrame(region, keep.extra.columns = TRUE)
+    export(region_gr, paste0(folder_ubuntu, "region.gtf"))
+    
+  }
+  return(region)
+}
+
+## system_linux : run halLiftover to find aligned region in the 10 other species 
+system_linux <- function(species) {
+  list_df <- list()
+  system(paste0("rm ", folder_ubuntu, "region_*"))
+  #Convert singletons_elegans GTF file to BED files
+  system(paste0("gtf2bed < ", folder_ubuntu, "region.gtf > ", folder_ubuntu, "region.bed"))
+  for(i in species){
+    tryCatch({
+      system(paste0("/home/lilly/hal/bin/halLiftover ",folder_ubuntu, "evolver_Caenorhabditis.hal --outPSLWithName caenorhabditis_elegans ", folder_ubuntu, "region.bed caenorhabditis_",i, " ",folder_ubuntu,"region_", i, ".psl --bedType 4"))
+      list_df[[i]] <- read.table(paste0(folder_ubuntu, "region_", i,".psl"))
+    }, error=function(e){print(i)})
+  }
+  return(list_df)
+}
+
+## pslToDataFrame : take a psl file in return a data frame (elegans_species version)
+pslToDataFrame <- function(elegans_species, species_name){
+  
+  if(is.null(elegans_species)){
+    return(elegans_species)
+  }else{
+    #Select the data frame
+    colnames(elegans_species) <- c("gene_id", "matches", "misMatches" ,"repMatches","nCount","qNumInsert","qBaseInsert","tNumInsert","tBaseInsert" ,"strand","scaff","qSize","start","end","seq_id2","tSize","start2","end2","blockCount","blockSizes","qStarts","tStarts") 
+    
+    #Create seq_id and seq_id2 
+    elegans_species$seq_id <- paste("elegans",elegans_species$scaff, sep = "_")
+    elegans_species <- elegans_species %>% rename(seqnames = "seq_id2")
+    elegans_species$seq_id2 <- paste(species_name,elegans_species$seqnames, sep = "_")
+    
+    #Create strand and strand2 (separate in two columns the column containing both strands)
+    elegans_species <- elegans_species %>% mutate(new_strand = gsub("([[:punct:]])([[:punct:]])", "\\1 \\2", elegans_species$strand)) %>% select(-strand) %>% separate(new_strand, into = c("strand", "strand2"), sep = " ")
+    return(elegans_species)
+  }
+}
+
+#Sub function to calculate the end column of a PSL file 
+calculate_end <- function(df) {
+  df$blockSizes_list <- lapply(strsplit(df$blockSizes, ","), as.numeric)
+  df$tStarts_list <- lapply(strsplit(df$tStarts, ","), as.numeric)
+  
+  df$end <- mapply(function(sizes, starts) {
+    end_list <- numeric()
+    for (i in seq_along(sizes)) {
+      end <- starts[i] + sizes[i]
+      end_list <- c(end_list, end)
+    }
+    return(paste(end_list, collapse = ","))
+  }, df$blockSizes_list, df$tStarts_list)
+  
+  new_df <- data.frame(seqnames = df$seqnames,
+                       start = df$tStarts,
+                       end = df$end, 
+                       length = df$blockSizes)
+  
+  return(new_df)
+}
+
+#Sub-function to convert tEnds and tStarts columns depending of the strand (-) 
+convert_strand <- function(df) {
+  df$tSize <- as.numeric(df$tSize)
+  tStarts <- strsplit(df$tStarts, ",")
+  tEnds <- vector("list", length(tStarts))
+  
+  for (i in seq_along(tStarts)) {
+    starts <- as.numeric(tStarts[[i]])
+    ends <- df$tSize[[i]] - starts
+    tEnds[[i]] <- paste(rev(ends), collapse = ",")
+  }
+  
+  df$tEnds <- sapply(tEnds, function(x) paste(unlist(strsplit(x, ",")), collapse = ","))
+  df$tStarts <- sapply(tStarts, function(x) paste(rev(x), collapse = ","))
+  
+  return(df)
+}
+
+#Sub-function to reverse blocksizes depending of the strand 
+reverse_blockSizes <- function(df) {
+  df$blockSizes <- sapply(strsplit(df$blockSizes, ","), function(x) paste(rev(x), collapse = ","))
+  return(df)
+}
+
+#Sub function to calculate the start column of a PSL file
+calculate_start <- function(df) {
+  df$blockSizes_list <- lapply(strsplit(df$blockSizes, ","), as.numeric)
+  df$tEnds_list <- lapply(strsplit(df$tEnds, ","), as.numeric)
+  
+  df$start <- mapply(function(sizes, ends) {
+    start_list <- numeric()
+    for (i in seq_along(sizes)) {
+      start <- ends[i] - sizes[i]
+      start_list <- c(start_list, start)
+    }
+    return(paste(start_list, collapse = ","))
+  }, df$blockSizes_list, df$tEnds_list)
+  
+  new_df <- data.frame(seqnames = df$seqnames,
+                       start = df$start,
+                       end = df$tEnds, 
+                       length = df$blockSizes)
+  
+  return(new_df)
+}
+
+#Sub function to unlist start and end columns
+split_start_end <- function(df) {
+  new_df <- data.frame()
+  
+  for (i in 1:nrow(df)) {
+    starts <- unlist(strsplit(df$start[i], ","))
+    ends <- unlist(strsplit(df$end[i], ","))
+    length <- unlist(strsplit(df$length[i], ","))
+    seqnames <- rep(df$seqnames[i], length(starts))
+    
+    temp_df <- data.frame(seqnames, start = as.numeric(starts), end = as.numeric(ends), length = as.numeric(length))
+    new_df <- rbind(new_df, temp_df)
+  }
+  
+  return(new_df)
+}
+
+#Function to take a PSL file and sort the start and end depending of the strand 
+sort_haliftover_data <- function(df){
+  if(!is.null(df)){
+    # Remove the last comma in each element of the 'numbers' column
+    df$blockSizes <- gsub(",$", "", df$blockSizes)
+    df$tStarts <- gsub(",$", "", df$tStarts)
+    
+    #Filter one block reads : no need to change anything
+    filter_block_one <- df %>% filter(blockCount == 1)
+    filter_block_one <- filter_block_one %>%  select(c("seqnames", "start2", "end2", "blockSizes")) %>% dplyr::rename(start = "start2", end = "end2", length = "blockSizes")
+    
+    #Filter other blocks (>1)
+    filter_blocks <- df %>% filter(blockCount > 1)
+    
+    #Filter rows whose strands are positive
+    positive <- filter_blocks %>% filter(strand2 == "+")
+    
+    if(nrow(positive) != 0){
+      positive <- calculate_end(positive)
+      positive <- split_start_end(positive)
+      
+    }else{
+      positive <- positive %>% select(c("seqnames","start2", "end2", "blockSizes")) %>% dplyr::rename(start = "start2", end = "end2", length = "blockSizes")
+      
+    }
+    #Filter rows whose strands are positive
+    negative <- filter_blocks %>% filter(strand2 == "-")
+    
+    if(nrow(negative) != 0){
+      negative <- convert_strand(negative)
+      negative <- reverse_blockSizes(negative)
+      negative <- calculate_start(negative)
+      negative <- split_start_end(negative)
+      
+    }else{
+      negative <- negative %>% select(c("seqnames","start2", "end2", "blockSizes")) %>%  dplyr::rename(start = "start2", end = "end2", length = "blockSizes")
+    }
+    
+    sorted_data <- rbind(filter_block_one, positive, negative)
+    sorted_data$length <- as.numeric(sorted_data$length)
+  }else{
+    sorted_data <- NULL
+  }
+  return(sorted_data)
+}
+
+#Function to stitch reads together depending of gap value 
+stitch <- function(raw_coord, gap_max){
+  if(is.null(raw_coord)){
+    return(raw_coord)
+    
+  }else{
+    l_1 <- list()
+    df_distinct <- raw_coord %>% distinct(seqnames)
+    
+    for(k in 1 : nrow(df_distinct)){
+      df <- raw_coord %>% filter(seqnames %in% df_distinct$seqnames[k]) %>% arrange(seqnames, start)
+      stich_df <- df[1,]
+      i <- 1
+      n <- 1
+      gap <- 0
+      gap_cumul <- 0
+      max_end <- 0
+      l_2 <- list()
+      while(n < nrow(df)){
+        #Initialize at line 1 (n==1)
+        gap <- 0
+        max_end <- df$end[n]
+        stich_df$end <- df$end[n]
+        stich_df$start <- df$start[n]
+        length <- df$length[n]
+        stich_df$length <- length
+        stich_df$gap <- gap
+        
+        #Calculate the gap
+        gap <- df$start[n+1] - df$end[n]
+        gap_cumul <- gap
+        
+        #Stich
+        #if start of other line is included between start and end, end added with gap_max value
+        while( df$start[n+1]>=  df$start[n] &  df$start[n+1]<=  (max_end + gap_max)){
+          n <- n + 1
+          if(df$end[n] >= max_end){
+            stich_df$end <- df$end[n]
+            max_end <- df$end[n]
+          }else{
+            stich_df$end <- max_end
+          }
+          length <- df$length[n]  + length
+          stich_df$length <- length
+          stich_df$gap <- gap_cumul
+          
+          if(n == nrow(df)){
+            
+            break
+            
+          }else{
+            gap <- df$start[n+1] - df$end[n]
+            gap_cumul <- gap + gap_cumul
+            
+          }
+        }
+        l_2[[i]] <- stich_df
+        i <- i + 1
+        n <- n + 1
+      }
+      if(n == nrow(df)){
+        gap <- 0
+        stich_df$end <- df$end[n]
+        stich_df$start <- df$start[n]
+        length <- df$length[n]
+        stich_df$length <- length
+        stich_df$gap <- gap
+        l_2[[i]] <- stich_df
+      }
+      df_stich <- as.data.frame(do.call(rbind, l_2))
+      l_1[[k]] <- df_stich
+    }
+    df <- as.data.frame(do.call(rbind,l_1))
+    return(df)
+  }
+}
+
+#Function to remove the aligned regions that are less than a certain length
+filtering <- function(stitch_data, region){
+  
+  if(is.null(stitch_data)){
+    return(stitch_data)
+  }else{
+    if(nrow(stitch_data)> 0){
+        filtered_df <- stitch_data %>% mutate(length = rowSums(across(c(length, gap)))) %>% filter(length > region$filtering_percentage/100*region$length) %>% select(-gap)
+        return(filtered_df)
+    }else{
+      stitch_data <- stitch_data %>% select(-gap)
+      return(stitch_data)
+    }
+  }
+}
+
+```
+
+```{r}
+## Generate a table of assembled fragments in function of gap values over the singletons 
+l <- list()
+
+#Gap values pipeline 
+i <- 1
+
+for(gname in singletons_metadata$gene_name){
+  for (gap in seq(from = 0, to = 1000, by = 50)) {
+    
+    region <- create_region("NA", 0, 0, gap, 0, gname) #the filtering percentage is not used here
+      
+    #Species names
+    species <- c("bovis", "becei", "panamensis", "inopinata","tropicalis", "remanei", "latens", "tribulationis", "briggsae", "nigoni")
+    
+    #HalLiftover command 
+    list_df <- system_linux(species)
+    
+    #Get data frames from PSL files obtained with halLiftover command
+    elegans_becei <- pslToDataFrame(list_df$becei,"becei")
+    elegans_bovis <- pslToDataFrame(list_df$bovis,"bovis")
+    elegans_panamensis <- pslToDataFrame(list_df$panamensis,"panamensis")
+    elegans_inopinata <- pslToDataFrame(list_df$inopinata,"inopinata")
+    elegans_tropicalis <- pslToDataFrame(list_df$tropicalis,"tropicalis")
+    elegans_remanei <- pslToDataFrame(list_df$remanei,"remanei")
+    elegans_latens <- pslToDataFrame(list_df$latens,"latens")
+    elegans_tribulationis <- pslToDataFrame(list_df$tribulationis,"tribulationis")
+    elegans_briggsae <- pslToDataFrame(list_df$briggsae,"briggsae")
+    elegans_nigoni <- pslToDataFrame(list_df$nigoni,"nigoni")
+    
+    #Build the aligned regions (blocks)
+    sorted_bovis <- sort_haliftover_data(elegans_bovis)
+    sorted_becei <- sort_haliftover_data(elegans_becei)
+    sorted_panamensis <- sort_haliftover_data(elegans_panamensis)
+    sorted_inopinata <- sort_haliftover_data(elegans_inopinata)
+    sorted_tropicalis <-  sort_haliftover_data(elegans_tropicalis)
+    sorted_remanei <-  sort_haliftover_data(elegans_remanei)
+    sorted_latens <-  sort_haliftover_data(elegans_latens)
+    sorted_tribulationis <- sort_haliftover_data(elegans_tribulationis)
+    sorted_briggsae <-  sort_haliftover_data(elegans_briggsae)
+    sorted_nigoni <-  sort_haliftover_data(elegans_nigoni)
+    
+    ## Step 3 : Stich the small reads together
+    
+    #Sticth function 
+    stitch_bovis <- stitch(sorted_bovis, region$gap)
+    stitch_becei <- stitch(sorted_becei, region$gap)
+    stitch_panamensis <- stitch(sorted_panamensis, region$gap)
+    stitch_inopinata <- stitch(sorted_inopinata, region$gap)
+    stitch_tropicalis <- stitch(sorted_tropicalis, region$gap)
+    stitch_remanei <- stitch(sorted_remanei, region$gap)
+    stitch_latens <- stitch(sorted_latens, region$gap)
+    stitch_tribulationis <- stitch(sorted_tribulationis, region$gap)
+    stitch_briggsae <- stitch(sorted_briggsae, region$gap)
+    stitch_nigoni <- stitch(sorted_nigoni, region$gap)
+    stitch_elegans <- region %>% select(seqnames, start, end, length, gap)
+    
+    
+    #Store everything in a data frame 
+    df_bovis <- data.frame(species = "bovis", gene_name = gname,  gap = region$gap, stitch_number = ifelse(!is.null(stitch_bovis), nrow(stitch_bovis), NA))
+        
+    df_becei <- data.frame(species = "becei", gene_name = gname, gap = region$gap, stitch_number = ifelse(!is.null(stitch_becei),nrow(stitch_becei), NA))
+                           
+    df_panamensis <- data.frame(species = "panamensis", gene_name = gname, gap = region$gap, stitch_number = ifelse(!is.null(stitch_panamensis),nrow(stitch_panamensis), NA))
+    
+    df_inopinata <- data.frame(species = "inopinata", gene_name = gname, gap = region$gap, stitch_number = ifelse(!is.null(stitch_inopinata),nrow(stitch_inopinata), NA))
+    
+    df_tropicalis <- data.frame(species = "tropicalis", gene_name = gname, gap = region$gap, stitch_number = ifelse(!is.null(stitch_tropicalis),nrow(stitch_tropicalis), NA))
+        
+    df_remanei <- data.frame(species = "remanei", gene_name = gname, gap = region$gap, stitch_number = ifelse(!is.null(stitch_remanei),nrow(stitch_remanei), NA))
+    
+    df_latens <- data.frame(species = "latens", gene_name = gname, gap = region$gap, stitch_number = ifelse(!is.null(stitch_latens),nrow(stitch_latens), NA))
+    
+    df_tribulationis <- data.frame(species = "tribulationis", gene_name = gname, gap = region$gap, stitch_number = ifelse(!is.null(stitch_tribulationis),nrow(stitch_tribulationis), NA))
+    
+    df_briggsae <- data.frame(species = "briggsae", gene_name = gname, gap = region$gap, stitch_number = ifelse(!is.null(stitch_briggsae),nrow(stitch_briggsae), NA))
+    
+    df_nigoni <- data.frame(species = "nigoni", gene_name = gname, gap = region$gap, stitch_number = ifelse(!is.null(stitch_nigoni),nrow(stitch_nigoni), NA))
+    
+    #rbind
+    df <- rbind(df_bovis, df_becei, df_panamensis, df_inopinata, df_tropicalis, df_remanei, df_latens, df_tribulationis, df_briggsae, df_nigoni)
+    
+    
+    #Store dfs in a list 
+      l[[i]] <- df
+      
+      i <- i + 1 
+      
+    }
+}
+
+df <- as.data.frame(do.call(rbind, l))
+df <- df %>% distinct()
+
+write.csv(df, paste0(folder_data_frames,"Assembled_fragments_in_fct_of_gap_values.csv"))
+```
+
+```{r}
+## Cumulative percentage of C. Elegans genes that have just one assembled fragment in at least one species 
+
+# First, remove excess of minimum assembled fragments number per genes per species 
+filtered_df <- df %>% group_by(species, gene_name) %>% filter(stitch_number == min(stitch_number))
+filtered_df <- filtered_df %>% group_by(species, gene_name) %>% filter(gap == min(gap))
+other_df <- df %>% group_by(species, gene_name) %>% filter(stitch_number > min(stitch_number))
+df_max <- rbind(filtered_df, other_df)
+
+# Filter the minimum value of number of assembled fragments  
+df_min_stitch_number <- df_max %>% filter(stitch_number == 1)
+
+# Create a frequency column 
+df_min_stitch_number <- df_min_stitch_number %>% group_by(gap) %>% summarise(n = n())
+
+## Plot the cumulative frequency 
+
+#Create a cumulative frequency plot with step format and multiple scenarios
+p <- ggplot(data = df_min_stitch_number, aes(x = gap, y = n)) +
+  labs(title = "Cumulative frequency of gap values for single assembled fragments",
+       y ="Cumulative frequency of gap values (%)",
+       x ="Gap values") +
+  geom_line(aes(y = cumsum(n)/sum(n)*100))
+
+ggsave(paste0(folder_data_frames,"Cumulative_frequency_gap_values_for_single_assembled_fragments.pdf", p, width = 4000, height = 2500, units = "px"))
+p
+```
+## Filtering percentage study
+
+```{r}
+## Code to generate the data 
+
+# Loop over singletons with different values of filtering percentage from 0% to 20% 
+l <- list()
+p <- list()
+
+#Gap values pipeline 
+i <- 1
+
+for(gname in singletons_metadata$gene_name){
+  for (filtering_percentage in seq(from = 0, to = 50, by = 2)) {
+    
+    region <- create_region("I", 0, 0, 200, filtering_percentage, gname) #gap value set at 200 
+      
+      
+    #Species names
+    species <- c("bovis", "becei", "panamensis", "inopinata","tropicalis", "remanei", "latens", "tribulationis", "briggsae", "nigoni")
+    
+    #HalLiftover command 
+    list_df <- system_linux(species)
+    
+    #Get data frames from PSL files obtained with halLiftover command
+    elegans_becei <- pslToDataFrame(list_df$becei,"becei")
+    elegans_bovis <- pslToDataFrame(list_df$bovis,"bovis")
+    elegans_panamensis <- pslToDataFrame(list_df$panamensis,"panamensis")
+    elegans_inopinata <- pslToDataFrame(list_df$inopinata,"inopinata")
+    elegans_tropicalis <- pslToDataFrame(list_df$tropicalis,"tropicalis")
+    elegans_remanei <- pslToDataFrame(list_df$remanei,"remanei")
+    elegans_latens <- pslToDataFrame(list_df$latens,"latens")
+    elegans_tribulationis <- pslToDataFrame(list_df$tribulationis,"tribulationis")
+    elegans_briggsae <- pslToDataFrame(list_df$briggsae,"briggsae")
+    elegans_nigoni <- pslToDataFrame(list_df$nigoni,"nigoni")
+    
+    #Build the aligned regions (blocks)
+    sorted_bovis <- sort_haliftover_data(elegans_bovis)
+    sorted_becei <- sort_haliftover_data(elegans_becei)
+    sorted_panamensis <- sort_haliftover_data(elegans_panamensis)
+    sorted_inopinata <- sort_haliftover_data(elegans_inopinata)
+    sorted_tropicalis <-  sort_haliftover_data(elegans_tropicalis)
+    sorted_remanei <-  sort_haliftover_data(elegans_remanei)
+    sorted_latens <-  sort_haliftover_data(elegans_latens)
+    sorted_tribulationis <- sort_haliftover_data(elegans_tribulationis)
+    sorted_briggsae <-  sort_haliftover_data(elegans_briggsae)
+    sorted_nigoni <-  sort_haliftover_data(elegans_nigoni)
+    
+    ## Step 3 : Stich the small reads together
+    
+    #Sticth function 
+    stitch_bovis <- stitch(sorted_bovis, region$gap)
+    stitch_becei <- stitch(sorted_becei, region$gap)
+    stitch_panamensis <- stitch(sorted_panamensis, region$gap)
+    stitch_inopinata <- stitch(sorted_inopinata, region$gap)
+    stitch_tropicalis <- stitch(sorted_tropicalis, region$gap)
+    stitch_remanei <- stitch(sorted_remanei, region$gap)
+    stitch_latens <- stitch(sorted_latens, region$gap)
+    stitch_tribulationis <- stitch(sorted_tribulationis, region$gap)
+    stitch_briggsae <- stitch(sorted_briggsae, region$gap)
+    stitch_nigoni <- stitch(sorted_nigoni, region$gap)
+    stitch_elegans <- region %>% select(seqnames, start, end, length, gap)
+    
+    ## Step 4 : Filter by 5% of the length of C.elegans
+    
+    #Filter function 
+    filtered_bovis <- filtering(stitch_bovis, region) 
+    filtered_becei <- filtering(stitch_becei, region)
+    filtered_panamensis <- filtering(stitch_panamensis, region)
+    filtered_inopinata <- filtering(stitch_inopinata, region)
+    filtered_tropicalis <- filtering(stitch_tropicalis, region)
+    filtered_remanei <- filtering(stitch_remanei, region)
+    filtered_latens <- filtering(stitch_latens, region)
+    filtered_tribulationis <- filtering(stitch_tribulationis, region)
+    filtered_briggsae <- filtering(stitch_briggsae, region)
+    filtered_nigoni <- filtering(stitch_nigoni, region)
+    
+    #Store everything in a data frame 
+    df_bovis <- data.frame(species = "bovis", gene_name = gname,  filtering_percentage = region$filtering_percentage, stitch_number = ifelse(!is.null(filtered_bovis),nrow(filtered_bovis), NA))
+        
+    df_becei <- data.frame(species = "becei", gene_name = gname, filtering_percentage = region$filtering_percentage, stitch_number = ifelse(!is.null(filtered_becei),nrow(filtered_becei), NA))
+                           
+    df_panamensis <- data.frame(species = "panamensis", gene_name = gname, filtering_percentage = region$filtering_percentage, stitch_number = ifelse(!is.null(filtered_panamensis),nrow(filtered_panamensis), NA))
+    
+    df_inopinata <- data.frame(species = "inopinata", gene_name = gname, filtering_percentage = region$filtering_percentage, stitch_number = ifelse(!is.null(filtered_inopinata),nrow(filtered_inopinata), NA))
+    
+    df_tropicalis <- data.frame(species = "tropicalis", gene_name = gname, filtering_percentage = region$filtering_percentage, stitch_number = ifelse(!is.null(filtered_tropicalis),nrow(filtered_tropicalis), NA))
+        
+    df_remanei <- data.frame(species = "remanei", gene_name = gname, filtering_percentage = region$filtering_percentage, stitch_number = ifelse(!is.null(filtered_remanei),nrow(filtered_remanei), NA))
+    
+    df_latens <- data.frame(species = "latens", gene_name = gname, filtering_percentage = region$filtering_percentage, stitch_number = ifelse(!is.null(filtered_latens),nrow(filtered_latens), NA))
+    
+    df_tribulationis <- data.frame(species = "tribulationis", gene_name = gname, filtering_percentage = region$filtering_percentage, stitch_number = ifelse(!is.null(filtered_tribulationis),nrow(filtered_tribulationis), NA))
+    
+    df_briggsae <- data.frame(species = "briggsae", gene_name = gname, filtering_percentage = region$filtering_percentage, stitch_number = ifelse(!is.null(filtered_briggsae),nrow(filtered_briggsae), NA))
+    
+    df_nigoni <- data.frame(species = "nigoni", gene_name = gname, filtering_percentage = region$filtering_percentage, stitch_number = ifelse(!is.null(filtered_nigoni),nrow(filtered_nigoni), NA))
+    
+    #rbind
+    df <- rbind(df_bovis, df_becei, df_panamensis, df_inopinata, df_tropicalis, df_remanei, df_latens, df_tribulationis, df_briggsae, df_nigoni)
+   
+    #Store dfs in a list 
+      l[[i]] <- df
+      i <- i + 1 
+      
+    }
+}
+df <- as.data.frame(do.call(rbind, l))
+write.csv(df, paste0(folder_data_frames,"Assembled_fragments_in_fct_of_filtering_percentage.csv"))
+```
+
+
+```{r}
+## Number of assembled fragments in at least one species 
+
+# First, remove excess of minimum assembled fragments number per genes per species 
+filtered_df <- df %>% group_by(species, gene_name) %>% filter(stitch_number == min(stitch_number))
+filtered_df <- filtered_df %>% group_by(species, gene_name) %>% filter(filtering_percentage == min(filtering_percentage))
+other_df <- df %>% group_by(species, gene_name) %>% filter(stitch_number > min(stitch_number))
+df_filtered <- rbind(filtered_df, other_df)
+df_max$filtering_percentage <- as.factor(df_max$filtering_percentage)
+
+# Plot boxplot
+p <- ggplot(df_max, aes(x = filtering_percentage, y=stitch_number)) +
+geom_boxplot(outlier.shape = NA) +
+  coord_cartesian(ylim=c(0, 10))+
+  labs(title = "Influence of filtering percentage on assembled fragments",
+       x = "Filtering percentage",
+       y = "Number of assembled fragments")
+
+ggsave(paste0(folder_data_frames,"Influence_of_filtering_percentage_on_assembled_fragments.pdf", p, width = 4000, height = 2500, units = "px"))
+```
