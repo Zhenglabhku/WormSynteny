@@ -1,0 +1,127 @@
+h1 {
+    font-size: 28px;
+}
+
+h2 {
+  font-size: 24px;
+  margin-bottom: 30px;
+}
+
+h4 {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 30px;
+}
+
+p {
+  font-size: 18px;
+  text-align: justify;
+  margin-bottom: 20px;
+  margin-top: 20px;
+}
+  
+.not-justify{
+  font-size: 18px;
+  text-align: none;
+  margin-bottom: 0px;
+  margin-top: 0px;
+}
+  
+.first-list p {
+  margin-bottom: 0px;
+  margin-top: 0px;
+}
+
+.paragraph-list {
+  font-size: 18px;
+  text-align: justify;
+  margin-bottom: 0px;
+}
+
+.type-explanations-img {
+  width: 900px;
+  height: 270px;
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 30px;
+}
+
+.type-region-img {
+  width: 900px;
+  height: 110px;
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 30px;
+}
+.type-long-img {
+  width: 900px;
+  height: 150px;
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 30px;
+}
+
+.type-select-img{
+  width: 300px;
+  height: 500px;
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 30px;
+}
+
+.type-plot-img{
+  width: 850px;
+  height: 345px;
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 30px;
+}
+
+
+.micro-macro-img{
+  width: 500px;
+  height: 300px;
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 30px;
+}
+
+.plot-features-img {
+  width: 300px;
+  height: 200px;
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 30px;
+}
+
+.gene-centered-img{
+  width: 150px;
+  height: 50px;
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 30px;
+}
+
+.type-table-img{
+  width: 900px;
+  height: 400px;
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 30px;
+}
+
+.type-flowchart-img{
+  max-width: 100%;
+  width: auto;
+  height: 3000px;
+  display: block;
+  margin: 0 auto;
+}
+
+.type-32-img{
+  max-width: 100%;
+  width: auto;
+  height: 250px;
+  display: block;
+  margin: 0 auto;
+}

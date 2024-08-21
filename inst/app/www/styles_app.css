@@ -1,0 +1,75 @@
+
+/* Plot features */
+
+/*Paragraphs*/
+.p_plot_features {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  color: black;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+/* Macro, micro and gene centered buttons */
+.first_three_buttons_plot_features{
+  font-size: 16px;
+  width: 180px;
+  margin-bottom: 10px;
+}
+
+/* Switch, show, and hide button */
+.other_three_buttons_plot_features{
+  font-size: 16px;
+  width: 90px;
+}
+
+/* Show button specifications*/
+.special_button{
+  margin-left:30px;
+}
+
+/* Select species */
+.checkboxes{
+  margin-left: 80px;
+  font-size: 16px;
+  color:black;
+  text-align: start;
+}
+
+/* Inquiry feature */ 
+
+.inquiry_features_region{
+  font-size: 15px;
+  color: black;
+  width: 120px;
+  text-align: start; 
+}
+
+.inquiry_features_second_line{
+  font-size: 16px;
+    color: black;
+    width: 130px;
+}
+
+.download_buttons{
+  font-size: 16px;
+  color:black;
+
+}
+
+/* Menu and Tabset panel */ 
+.menu, .tabset-panel{
+  font-size: 16px;
+  margin-bottom: 0px;
+
+}
+
+.box.box-solid.box-primary { 
+  text-align: center; 
+  
+}
+   
+.explanations{
+    text-align: start; 
+}
