@@ -95,7 +95,7 @@ Install the development version of WormSyntenyPackage from
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("Zhenglabhku/WormSynteny")
+devtools::install_github("Zhenglabhku/WormSynteny/WormSynteny_Package")
 ```
 
 ```r
