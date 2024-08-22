@@ -112,6 +112,6 @@ Once the packaged is installed and the dependencies are checked, open the app by
 library(WormSyntenyPackage)
 myApp()
 ```
-##Tutorial
-A detailed tutorial can be found at [webpage](https://wormsynteny.org/Wormsynteny/)
+## Tutorial
+A detailed tutorial can be found at [wormsynteny.org](https://wormsynteny.org/Wormsynteny/)
 or the same webpage of WormSyntenyPackage launched locally. 
