@@ -90,24 +90,24 @@ We test the package in Windows Subsystem for Linux (WSL) and macOS(M1 Chip).
 
 ## Installation
 
-Install the development version of WormSyntenyPackage from
+Install WormSyntenyPackage (version 1.0) from
 [GitHub](https://github.com/Zhenglabhku/WormSynteny/) with:
 
 ``` bash
 # clone our repository
 git clone https://github.com/Zhenglabhku/WormSynteny.git
 
-#include the .hal file
+# download the .hal file
 cd WormSynteny && git lfs pull
 ```
 
 ```r
-#' install.packages("remotes")
+# install the "remotes" packages using: install.packages("remotes")
 remotes::install_local("/path/to/the/packages/folder/")
 ```
 
 ```r
-#' simply test the availability of software inside in R console
+# test the availability of software inside R console
 Sys.which("gtf2bed")
 Sys.which("halLiftover")
 ```
@@ -119,8 +119,9 @@ Once the packaged is installed and the dependencies are checked, open the app by
 ``` r
 library(WormSyntenyPackage)
 myApp()
-#' if your WSL doesn't evoke a browser automatically, the url return in r console could be visited in broswer.
+# if your WSL doesn't open a browser automatically, the r console will return a url, which can be used to visit the App.
 ```
+
 ## Tutorial
 A detailed tutorial can be found at [wormsynteny.org](https://wormsynteny.org/Wormsynteny/)
 or the same webpage of WormSyntenyPackage launched locally. 
