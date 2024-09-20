@@ -28,6 +28,8 @@ if gtf is not None:
 				line_elements = line.split("\t")
 				if line_elements[3] != line_elements[4]:
 					coverage = bw_region_mean(bw_file = bw_file, chromosome = line_elements[0], start = line_elements[3], end = line_elements[4])
+					if coverage is None:
+						coverage = 0
 				if args.addinfo is not None:
 					print(f"{line}\t{coverage}\t{args.addinfo}")
 				else:
