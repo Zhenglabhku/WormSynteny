@@ -1,10 +1,11 @@
 import pyBigWig
 import argparse
 import re
-parser = argparse.ArgumentParser(description='My script description')
+parser = argparse.ArgumentParser(description='Call depth base on the coordinates of gtf/bed')
 parser.add_argument('--gtf', type=str, help='Path to gtf file')
 parser.add_argument('--bw', type=str, help='Path to wig file')
-parser.add_argument('--bed')
+parser.add_argument('--bed', type=str, help='Path to bed file')
+parser.add_argument('--addinfo', type=str, help='add info to each rows')
 args = parser.parse_args()
 
 bw_file = args.bw 
@@ -27,7 +28,10 @@ if gtf is not None:
 				line_elements = line.split("\t")
 				if line_elements[3] != line_elements[4]:
 					coverage = bw_region_mean(bw_file = bw_file, chromosome = line_elements[0], start = line_elements[3], end = line_elements[4])
-				print(f"{line}\t{coverage}")
+				if args.addinfo is not None:
+					print(f"{line}\t{coverage}\t{args.addinfo}")
+				else:
+					print(f"{line}\t{coverage}")
 
 if bed is not None:
 	with open(bed, "r") as handle:
